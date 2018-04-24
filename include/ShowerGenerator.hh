@@ -55,12 +55,15 @@ class ShowerGenerator : public G4VPrimaryGenerator
    double        start_energy;    //muon start energy in surface GeV
    double        start_costheta;    //muon start angle
 
-   std::vector<double>  *particle_energy;
-   std::vector<double>  *particle_momentumX;  //GeV
-   std::vector<double>  *particle_momentumY;  //GeV
-   std::vector<double>  *particle_momentumZ;  //GeV
-   std::vector<std::string>  *particle_name;
-
+   double particle_energy;
+   double particle_momentumX;  //GeV
+   double particle_momentumY;  //GeV
+   double particle_momentumZ;  //GeV
+  double x;
+  double y;
+  double z;
+  double weight; //Weighted probability of muon generation at surface
+  
    int max_entries;
 
    G4ThreeVector particle_position;
@@ -72,4 +75,60 @@ class ShowerGenerator : public G4VPrimaryGenerator
 
 #endif
 
+/*
+#ifndef WeightedGenerator_h
+#define WeightedGenerator_h 1
 
+#include "G4VPrimaryGenerator.hh"
+#include "globals.hh"
+
+#include "TFile.h"
+#include "TTree.h"
+#include "TChain.h"
+#include <vector>
+#include <string>
+
+class G4Event;
+
+class WeightedGenerator : public G4VPrimaryGenerator
+{
+  public:
+    WeightedGenerator();
+    virtual ~WeightedGenerator();
+
+    // static access method
+    // static const WeightedGenerator* Instance();
+
+    // method from the base class
+    virtual void GeneratePrimaryVertex(G4Event*);
+
+    double Distribution(double Energy, double CosTheta);
+
+    inline double GetStartEnergy(){return startenergy; }
+    inline double GetStartCosTheta(){return startcostheta; }
+
+
+  private:
+    TFile *inputfile;
+    TTree *datatree;
+
+   double        startenergy;    //muon start energy in surface GeV
+   double        startcostheta;    //muon start angle
+
+   double  *energy;
+   double  *px;  //GeV
+   double  *py;  //GeV
+   double  *pz;  //GeV
+
+   double *x;
+   double *y;
+   double *z;
+
+   int max_entries;
+
+   G4ThreeVector particleposition;
+   G4double particletime;
+
+};
+#endif
+*/
