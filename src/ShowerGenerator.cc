@@ -18,6 +18,7 @@
 
 #include "ShowerGenerator.hh"
 
+
 #include "G4LogicalVolumeStore.hh"
 #include "G4LogicalVolume.hh"
 #include "G4Box.hh"
@@ -53,6 +54,7 @@
 #include "TStyle.h"
 #include "TTree.h"
 #include "TChain.h"
+#include "TRandom3.h"
 #include <vector>
 #include <string>
 
@@ -60,28 +62,34 @@
 
 ShowerGenerator::ShowerGenerator()
 {
-  const char* muon_path = std::getenv("G4MUONDATA");
-  inputfile = new TFile(Form("%s/Muonbackground_shielding.root", muon_path) ,"READ");
-  datatree = (TTree*)inputfile->Get("tree");
+  const char* muon_path = "/home/CJ.Barton/Muon_GUORE/Truon_GUORE/mac";
+  inputfile = new TFile(Form("%s/SmallMuonFile.root", muon_path) ,"READ");
+  datatree = (TTree*)inputfile->Get("muontree");
 
+  //  TRandom3 *ran3 = new TRandom3(50000);
+  //ran3->SetSeed(time(NULL));
+
+  
   max_entries = datatree->GetEntries();
 
   start_energy = 0;    //muon start energy in surface GeV
   start_costheta = 0;    //muon start angle
-  particle_energy = NULL;
-  particle_momentumX = NULL;  //GeV
-  particle_momentumY = NULL;  //GeV
-  particle_momentumZ = NULL;  //GeV
-  particle_name = NULL;
-
-   datatree->SetBranchAddress("start_energy", &start_energy);
-   datatree->SetBranchAddress("start_costheta", &start_costheta);
-   datatree->SetBranchAddress("particle_energy", &particle_energy);
-   datatree->SetBranchAddress("particle_momentumX", &particle_momentumX);
-   datatree->SetBranchAddress("particle_momentumY", &particle_momentumY);
-   datatree->SetBranchAddress("particle_momentumZ", &particle_momentumZ);
-   datatree->SetBranchAddress("particle_name", &particle_name);
-
+  particle_energy = 0;
+  particle_momentumX = 0;  //GeV
+  particle_momentumY = 0;  //GeV
+  particle_momentumZ = 0;  //GeV
+  weight = 0;
+  
+   datatree->SetBranchAddress("startenergy", &start_energy);
+   datatree->SetBranchAddress("startcostheta", &start_costheta);
+   datatree->SetBranchAddress("energy", &start_energy);
+   datatree->SetBranchAddress("px", &particle_momentumX);
+   datatree->SetBranchAddress("py", &particle_momentumY);
+   datatree->SetBranchAddress("pz", &particle_momentumZ);
+   datatree->SetBranchAddress("x", &x);
+   datatree->SetBranchAddress("y", &y);
+   datatree->SetBranchAddress("z", &z);
+   datatree->SetBranchAddress("weight", &weight);
 	 G4cout << max_entries << " " << inputfile->GetName() << G4endl;
 }
 
@@ -96,58 +104,45 @@ ShowerGenerator::~ShowerGenerator()
 void ShowerGenerator::GeneratePrimaryVertex(G4Event* anEvent)
 {
   // Select random entry within file
-  int ev_ID = (int)(G4UniformRand()*max_entries);
-  datatree->GetEntry(ev_ID);
+  //Flat version (stable:) int ev_ID = (int)(G4UniformRand()*max_entries);
+  double comparator = G4UniformRand(); //should be between 0 and 1
+  double comparee = 0;
+  int counter = 0;
+  while(comparee<comparator)
+    {
+      datatree->GetEntry(counter);
+      comparee += weight; //weight is normalized so that total sum is 1.0
+      if(counter>=max_entries)
+	G4cout << G4endl << "Sampling method error" << G4endl; //should never happen
+      counter++;
+    }
+
+  datatree->GetEntry(counter);
 
   //for all shower particles
-  int nRealGen = 0;
-  int nEvents = particle_energy->size();
 
-  for (int j=0; j < nEvents; j++) {
+
   particle_time = 0.0*s;
 
-  // Generate on a square above the experiment
-  G4double fXPosition = (1. - 2.*G4UniformRand())*15;
-  G4double fYPosition = (1. - 2.*G4UniformRand())*15;
-
-  particle_position.setX(fXPosition*m);
-  particle_position.setY(fYPosition*m);
-  particle_position.setZ(14.0*m);
+  double xx = x;
+  double yy = y;
+  double zz = z;
+  
+  particle_position.setX(xx*m);
+  particle_position.setY(yy*m);
+  particle_position.setZ(zz*m);
 
 	G4PrimaryVertex* vertex = new G4PrimaryVertex(particle_position,particle_time);
 
 	G4ParticleDefinition* particle_definition = 0;
-	if (!(particle_name->at(j).compare("mu-"))) particle_definition = G4MuonMinus::MuonMinusDefinition();
-	if (!(particle_name->at(j).compare("neutron"))) particle_definition = G4Neutron::NeutronDefinition();
-  if (!(particle_name->at(j).compare("alpha"))) particle_definition = G4Alpha::AlphaDefinition();
-  if (!(particle_name->at(j).compare("gamma"))) particle_definition = G4Gamma::GammaDefinition();
-  if (!(particle_name->at(j).compare("e-"))) particle_definition = G4Electron::ElectronDefinition();
-  if (!(particle_name->at(j).compare("e+"))) particle_definition = G4Positron::PositronDefinition();
-  if (!(particle_name->at(j).compare("mu+"))) particle_definition = G4MuonPlus::MuonPlusDefinition();
-  if (!(particle_name->at(j).compare("anti_neutron"))) particle_definition = G4AntiNeutron::AntiNeutronDefinition();
-  if (!(particle_name->at(j).compare("kaon+"))) particle_definition = G4KaonPlus::KaonPlusDefinition();
-  if (!(particle_name->at(j).compare("kaon-"))) particle_definition = G4KaonMinus::KaonMinusDefinition();
-  if (!(particle_name->at(j).compare("kaon0L"))) particle_definition = G4KaonZeroLong::KaonZeroLongDefinition();
-  if (!(particle_name->at(j).compare("pi+"))) particle_definition = G4PionPlus::PionPlusDefinition();
-  if (!(particle_name->at(j).compare("pi-"))) particle_definition = G4PionMinus::PionMinusDefinition();
-  if (!(particle_name->at(j).compare("nu_e"))) particle_definition = G4NeutrinoE::NeutrinoEDefinition();
-  if (!(particle_name->at(j).compare("nu_mu"))) particle_definition = G4NeutrinoMu::NeutrinoMuDefinition();
-  if (!(particle_name->at(j).compare("anti_nu_e"))) particle_definition = G4AntiNeutrinoE::AntiNeutrinoEDefinition();
-  if (!(particle_name->at(j).compare("anti_nu_mu"))) particle_definition = G4AntiNeutrinoMu::AntiNeutrinoMuDefinition();
-  if (!(particle_name->at(j).compare("deuteron"))) particle_definition = G4Deuteron::DeuteronDefinition();
-  if (particle_definition == 0) continue;
+       particle_definition = G4MuonMinus::MuonMinusDefinition();
 
   // Set momenta, no rotations done here (unlike in MaGe)
-  double px_MJD = particle_momentumX->at(j);
-  double py_MJD = particle_momentumY->at(j);
-  double pz_MJD = particle_momentumZ->at(j);
-  double pEnergy = particle_energy->at(j);
+       double px_MJD = particle_momentumX;
+       double py_MJD = particle_momentumY;
+       double pz_MJD = particle_momentumZ;
+       //       double pEnergy = particle_energy;
 
-  // Set a 500 keV threshold if too many particles, reduces the number of particles generated
-  // Do this because of memory issues, not the most elegant solution but works
-  if(pEnergy < 1e-05)continue; // 10 keV cutoff
-  if(nEvents > 100000 && pEnergy < 5E-04)continue;
-  nRealGen++;
 
   G4ThreeVector momentum(px_MJD*GeV,py_MJD*GeV,pz_MJD*GeV);
 
@@ -160,10 +155,10 @@ void ShowerGenerator::GeneratePrimaryVertex(G4Event* anEvent)
   // vertex->SetWeight(Distribution(start_energy,start_costheta));  // Totally useless for now
 
   anEvent->AddPrimaryVertex(vertex);
-  }
+
 
   // Output information, maybe not so useful
-   G4cout << "Entry #: " << ev_ID << "\t Length: " << nEvents << "\t Generated:" << nRealGen << G4endl;
+
 
 }
 
@@ -185,3 +180,101 @@ double ShowerGenerator::Distribution(double Energy, double CosTheta)
 }
 
 
+/*
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+WeightedGenerator::WeightedGenerator()
+{
+  const char* muon_path = "/home/CJ.Barton/Muon_GUORE/Truon_GUORE/mac";
+  inputfile = new TFile(Form("%s/SmallMuonFile.root", muon_path) ,"READ");
+  datatree = (TTree*)inputfile->Get("muontree");
+
+  max_entries = datatree->GetEntries();
+
+  startenergy = 0;    //muon start energy in surface GeV
+  startcostheta = 0;    //muon start angle
+  energy = 0;
+  px = 0;  //GeV
+  py = 0;  //GeV
+  pz = 0;  //GeV
+  x = 0;
+  y = 0;
+  z = 0;
+
+   datatree->SetBranchAddress("startenergy", &startenergy);
+   datatree->SetBranchAddress("startcostheta", &startcostheta);
+   datatree->SetBranchAddress("energy", &energy);
+   datatree->SetBranchAddress("px", &px);
+   datatree->SetBranchAddress("py", &py);
+   datatree->SetBranchAddress("pz", &pz);
+   datatree->SetBranchAddress("x", &x);
+   datatree->SetBranchAddress("y", &y);
+   datatree->SetBranchAddress("z", &z);
+
+	 G4cout << max_entries << " " << inputfile->GetName() << G4endl;
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+WeightedGenerator::~WeightedGenerator()
+{
+  delete inputfile;
+}
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+void WeightedGenerator::GeneratePrimaryVertex(G4Event* anEvent)
+{
+  // Select random entry within file
+  int ev_ID = (int)(G4UniformRand()*max_entries);
+  datatree->GetEntry(ev_ID);
+
+  particletime = 0.0*s;
+  double xx = x[ev_ID];
+  double yy = y[ev_ID];
+  double zz = z[ev_ID];
+  double pxx = px[ev_ID];
+  double pyy = py[ev_ID];
+  double pzz = pz[ev_ID];
+  particleposition.setX(xx*m);
+  particleposition.setY(yy*m);
+  particleposition.setZ(zz*m);
+
+	G4PrimaryVertex* vertex = new G4PrimaryVertex(particleposition,particletime);
+	
+ 
+	G4ThreeVector momentum(pxx*GeV,pyy*GeV,pzz*GeV);
+G4ParticleDefinition* particledefinition = G4MuonMinus::MuonMinusDefinition();
+	G4PrimaryParticle* thePrimaryParticle =
+    new G4PrimaryParticle(particledefinition,
+			  pxx*GeV,
+			  pyy*GeV,
+			  pzz*GeV);
+	vertex->SetPrimary(thePrimaryParticle);
+  // vertex->SetWeight(Distribution(start_energy,start_costheta));  // Totally useless for now
+
+  anEvent->AddPrimaryVertex(vertex);
+
+
+  // Output information, maybe not so useful
+   G4cout << "Entry #: " << ev_ID << G4endl;
+}
+
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+//weighting with incident muon distribution
+//https://escholarship.org/uc/item/6jm8g76d#page-3
+double WeightedGenerator::Distribution(double Energy, double CosTheta)
+{
+  double CosThetaStar = sqrt(
+	(pow(CosTheta,2) + pow(0.102573,2) -0.068287*pow(CosTheta,0.958633)+0.0407253*pow(CosTheta,0.817285) )/
+	(1+pow(0.102573,2)-0.068287+0.0407253));
+
+  double I;
+  I = 0.14*pow(Energy*(1+3.64/(Energy*pow(CosThetaStar,1.29))),-2.7)
+	  *((1./(1+(1.1*Energy*CosThetaStar)/115.))+(0.054/(1+(1.1*Energy*CosThetaStar)/850.)));
+
+  return (I);
+}
+*/
