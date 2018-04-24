@@ -1,0 +1,30 @@
+# Lines beginning with #$ are special commands to configure the job.
+		
+### Job Configuration Starts Here #############################################
+# Run the job in the current working directory
+#$ -cwd
+
+# Run this job in the normal Bash shell environment (Don't change this)
+#$ -S /bin/bash
+			
+# Job name - this will show up in the output of the qstat command
+# Don't use spaces or special characters
+# $ -N simulationbatch-jobbo
+				
+# request 1 CPU core on a single compute node
+#$ -pe threaded 1
+					
+# Output file name - all regular output goes to this file instead of the screen
+#$ -o simulationbatch-outto
+							
+# Error output file name - all Job Errors are written to this file
+#$ -e simulationbatch-erro
+								
+# Export all current environment variables to the scheduled job
+#$ -V
+									
+### Commands to run your program start here ####################################
+
+# New random sampling method implemented, let's hope it works
+
+~/Muon_GUORE/Truon_GUORE/Muon_GUORE ~/Muon_GUORE/Truon_GUORE/mac/weighted.mac $(openssl rand 3 | od -DAn)

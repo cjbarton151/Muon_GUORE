@@ -1,0 +1,33 @@
+# Lines beginning with #$ are special commands to configure the job.
+		
+### Job Configuration Starts Here #############################################
+# Run the job in the current working directory
+#$ -cwd
+
+# Run this job in the normal Bash shell environment (Don't change this)
+#$ -S /bin/bash
+			
+# Job name - this will show up in the output of the qstat command
+# Don't use spaces or special characters
+# $ -N manysub-jobbo
+				
+# request 1 CPU core on a single compute node
+#$ -pe threaded 1
+					
+# Output file name - all regular output goes to this file instead of the screen
+#$ -o manysub-outto
+							
+# Error output file name - all Job Errors are written to this file
+#$ -e manysub-erro
+								
+# Export all current environment variables to the scheduled job
+#$ -V
+									
+### Commands to run your program start here ####################################
+
+#counter=100
+#while [ $counter -le 999 ]
+#do
+root -q -b "neweventbuilder.C($counter)"
+#((counter++))
+#done
