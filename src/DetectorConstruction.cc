@@ -90,17 +90,53 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
 
 
-	//
-	G4Box* solid_Rock = new G4Box("sol_Rock",50*m,50*m,30*m);
-	G4Box* solid_Lab = new G4Box("sol_Lab",35*m,10*m,4*m);
+	//Old rock geometry, saved in case it needs to be reused
+  /*
 	G4SubtractionSolid *solid_Rock2 = new G4SubtractionSolid("sol_Rock2", solid_Rock, solid_Lab ,0 , G4ThreeVector(-25*m,0,10.5*m));
 	G4Tubs* solid_CutOut = new G4Tubs("sol_CutOut",0, 6.50001*m ,6.50001*m, 0, 2*M_PI);
-	G4SubtractionSolid *solid_Rock3 = new G4SubtractionSolid("sol_Rock2", solid_Rock2, solid_CutOut ,0 , G4ThreeVector(0,0,0));
-
+	G4SubtractionSolid *solid_Rock3 = new G4SubtractionSolid("sol_Rock3", solid_Rock2, solid_CutOut ,0 , G4ThreeVector(0,0,0));
 
   G4LogicalVolume* logical_Rock = new G4LogicalVolume(solid_Rock3,mat_Rock,"log_Rock");
 	logical_Rock->SetVisAttributes ( new G4VisAttributes(G4Colour(0.7, 0.7, 0.7, 0.5) )); //grey 50% transparent
   G4VPhysicalVolume* physical_Rock = new G4PVPlacement(0,G4ThreeVector(),logical_Rock,"phy_Rock",logical_World,false,0,checkOverlaps);
+  */
+
+
+
+  // New rock geometry, turned on at the moment.
+  
+	//Separate the rock into two regions
+	//The region closer to the detector will have better position res.
+
+  G4Box* solid_Rock = new G4Box("sol_Rock",50*m,50*m,30*m);
+  G4Box* solid_Lab = new G4Box("sol_Lab",35*m,10*m,4*m);
+
+  
+
+	G4Tubs* inner_CutOut = new G4Tubs("inn_CutOut",0*m, 11.5*m, 11.5*m,0, 2*M_PI);
+
+	G4SubtractionSolid *outer_Rock = new G4SubtractionSolid("out_Rock", solid_Rock, inner_CutOut ,0 , G4ThreeVector(-25*m,0,10.5*m));
+
+	G4SubtractionSolid *outer_Rock2 = new G4SubtractionSolid("out_Rock2", outer_Rock, solid_Lab ,0 , G4ThreeVector(0,0,0));//rock w/ inner, lab cutout
+
+	G4Tubs* inner_Rock = new G4Tubs("inn_Rock",6.50001*m, 11.49999*m, 11.49999*m, 0, 2*M_PI);
+	
+	G4SubtractionSolid *inner_Rock2 = new G4SubtractionSolid("inn_Rock2", inner_Rock, solid_Lab ,0 , G4ThreeVector(-25*m,0,10.5*m));
+		
+	G4LogicalVolume* logical_outerRock = new G4LogicalVolume(outer_Rock2,mat_Rock,"log_outRock");
+
+	logical_outerRock->SetVisAttributes ( new G4VisAttributes(G4Colour(0.7, 0.7, 0.7, 0.5) )); //grey 50% transparent
+
+	G4VPhysicalVolume* physical_outerRock = new G4PVPlacement(0,G4ThreeVector(),logical_outerRock,"phy_outerRock",logical_World,false,0,checkOverlaps);
+
+	G4LogicalVolume* logical_innerRock = new G4LogicalVolume(inner_Rock2,mat_Rock,"log_innRock");
+
+		logical_innerRock->SetVisAttributes ( new G4VisAttributes(G4Colour(0.7, 0.7, 0.7, 0.5) )); //grey 50% transparent
+	
+	G4VPhysicalVolume* physical_innerRock = new G4PVPlacement(0,G4ThreeVector(),logical_innerRock,"phy_innerRock",logical_World,false,0,checkOverlaps);
+  
+
+
 
 
 	//fill gas
@@ -196,7 +232,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 	}
 
 
-
+	//Define regions for custom range cuts in macro
+	//G4Region *OuterRockRegion = new G4Region("OuterRockRegion");
+	//OuterRockRegion-> AddRootLogicalVolume(logical_outerRock);
+	//G4Region *InnerRockRegion = new G4Region("InnerRockRegion");
+	//InnerRockRegion-> AddRootLogicalVolume(logical_innerRock);
 
 
   return physical_World;
