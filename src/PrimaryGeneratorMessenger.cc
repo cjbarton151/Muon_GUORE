@@ -44,7 +44,7 @@ PrimaryGeneratorMessenger::PrimaryGeneratorMessenger(PrimaryGeneratorAction* gen
   fSelectCmd->SetGuidance("Muon");
   fSelectCmd->SetGuidance("GPS");
   fSelectCmd->SetCandidates("Muon GPS");
-  fSelectCmd->SetDefaultValue("Muon");
+  fSelectCmd->SetDefaultValue("GPS");
 
 }
 
@@ -70,6 +70,7 @@ void PrimaryGeneratorMessenger::SetNewValue(G4UIcommand* command,G4String newVal
       {
         fPrimaryGenerator->SetGenerator(new G4GeneralParticleSource);
       }
+
   }
 }
 
