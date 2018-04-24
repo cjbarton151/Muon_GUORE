@@ -78,7 +78,7 @@
 #include <time.h>
 #include<stdlib.h>
 
-const int maxsteps=1000000;
+const int maxsteps=10000000;
 int currentsteps=0; //global ints just to keep track of file size limits
 
 //////////////////////////////////////////////////
@@ -105,6 +105,7 @@ public:
 
   //variables to write to output file
   int PID;
+  int ParentID;
   double energy;
   double kineticenergy;
   double deltaenergy;
@@ -115,8 +116,13 @@ public:
   double px;
   double py;
   double pz;
+  double muonx;
+  double muony;
+  double muonz;
+  double muonenergy;
   int eventnumber;
   int stepnumber;
+  double steplength;
   int tracknumber;
   int detectornumber;
   int isentryevent;
@@ -125,6 +131,7 @@ public:
   double startx;
   double starty;
   double startz;
+  int randomseed;
   
   //variables specifically to parse detector number from detector name (used in the Write method)
   G4String name;
@@ -157,6 +164,7 @@ void IO::Open(char* inputseed)
 
   //Branches to be filled
   fTree->Branch("PID",&PID,"PID/I");
+  fTree->Branch("ParentID",&ParentID,"ParentID/I");
   fTree->Branch("energy",&energy,"energy/D");
   fTree->Branch("kineticenergy", &kineticenergy, "kineticenergy/D");
   fTree->Branch("deltaenergy",&deltaenergy,"deltaenergy/D");
@@ -167,8 +175,13 @@ void IO::Open(char* inputseed)
   fTree->Branch("px",&px,"px/D");
   fTree->Branch("py",&py,"py/D");
   fTree->Branch("pz",&pz,"pz/D");
-  fTree->Branch("eventnumber",&eventnumber,"eventnumber/I");
+  fTree->Branch("muonx",&muonx,"muonx/D");
+  fTree->Branch("muony",&muony,"muony/D");
+  fTree->Branch("muonz",&muonz,"muonz/D");
+  fTree->Branch("muonenergy",&muonenergy,"muonenergy/D");
+    fTree->Branch("eventnumber",&eventnumber,"eventnumber/I");
   fTree->Branch("stepnumber",&stepnumber,"stepnumber/I");
+  fTree->Branch("steplength",&steplength,"steplength/D");
   fTree->Branch("tracknumber",&tracknumber,"tracknumber/I");
   fTree->Branch("detectornumber",&detectornumber,"detectornumber/I");
   fTree->Branch("isentryevent", &isentryevent, "isentryevent/I");
@@ -177,7 +190,9 @@ void IO::Open(char* inputseed)
   fTree->Branch("startx",&startx,"startx/D");
   fTree->Branch("starty",&starty,"starty/D");
   fTree->Branch("startz",&startz,"startz/D");
-    
+  fTree->Branch("randomseed",&randomseed,"randomseed/I");
+
+  randomseed = atoi(inputseed);
   
   G4cout << "Output file opened." << G4endl;
 
@@ -188,6 +203,7 @@ void IO::Write(G4Track *track, int isadetector, int isentry)
 {
   
   PID = track->GetDefinition()->GetPDGEncoding();
+  ParentID = track->GetParentID();
   energy = track->GetStep()->GetTotalEnergyDeposit()/CLHEP::keV;
   kineticenergy = track->GetDynamicParticle()->GetKineticEnergy()/CLHEP::keV;
   deltaenergy = track->GetStep()->GetDeltaEnergy()/CLHEP::keV;
@@ -211,12 +227,22 @@ void IO::Write(G4Track *track, int isadetector, int isentry)
   px = track->GetMomentumDirection().x();
   py = track->GetMomentumDirection().y();
   pz = track->GetMomentumDirection().z();
+
+  muonx = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetPrimaryVertex()->GetX0()/CLHEP::mm;
+  muony = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetPrimaryVertex()->GetY0()/CLHEP::mm;
+  muonz = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetPrimaryVertex()->GetZ0()/CLHEP::mm;
+  
+  muonenergy = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetPrimaryVertex()->GetPrimary()->GetKineticEnergy();
+    
   eventnumber = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetEventID();
   stepnumber = currentsteps;
+  steplength = track->GetStep()->GetStepLength()/CLHEP::mm;
   tracknumber = track->GetTrackID();
   isentryevent = isentry;
   if(PID!=13) //muons have no creator process and cause a seg fault
-  creatorprocess = track->GetCreatorProcess()->GetProcessName();
+    creatorprocess = track->GetCreatorProcess()->GetProcessName();
+  else
+    creatorprocess = "None";
   startx = track->GetVertexPosition().x()/CLHEP::mm;
   starty = track->GetVertexPosition().y()/CLHEP::mm;
   startz = track->GetVertexPosition().z()/CLHEP::mm;
@@ -248,7 +274,7 @@ void IO::Write(G4Track *track, int isadetector, int isentry)
 
   if(isadetector==0)
     {
-      detectornumber = -1; //Used in implementation of LAr as its own detector
+      detectornumber = 1181; //Used in implementation of LAr as its own detector
       
     }//if(isadetector==0
 
@@ -347,20 +373,23 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
   
   if(currentsteps<maxsteps)
     {//hits inside detector detection
-
+      
       G4String whatgeometry = step->GetPreStepPoint()->GetPhysicalVolume()->GetName();
       G4String thatgeometry = "";
       const G4String detectornames = "phy_Det";
       const G4String fillgasname = "phy_FillGas"; //LAr surrounding detector
-
+      const G4String liquidargon = "phy_liquidArgon";
       
       if(strstr(whatgeometry.c_str(),detectornames.c_str())) //if pre step point originates in a detector
 	{
-	fio->Write(step->GetTrack(), 1, 0); //non-entry event
-	currentsteps++;
+	  fio->Write(step->GetTrack(), 1, 0); //non-entry event
+	  currentsteps++;
 	}//if(strstr
-      
-      if(strstr(whatgeometry.c_str(),fillgasname.c_str()))//if pre step point is in LAr
+
+
+      //Deprecated collection tags, use at own risk
+      /*
+      if(strstr(whatgeometry.c_str(),fillgasname.c_str()))//if pre step point is in fill gas
 	{
 	  thatgeometry = step->GetPostStepPoint()->GetPhysicalVolume()->GetName();
 	  if(strstr(thatgeometry.c_str(),detectornames.c_str()))//but post step point is in Ge
@@ -368,27 +397,29 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
 	      fio->Write(step->GetTrack(), 1, 1); //entry event
 	      currentsteps++;
 	    }
-
-	  // else //LAr as a channel, comment out these 5 lines to not write LAr hits 
-	  //{
-	  //fio->Write(step->GetTrack(),0, 0); //comment to not write LAr hits to a channel
-	  //currentsteps++;
-	  //}
-
+	}
+      
+      if(strstr(whatgeometry.c_str(),liquidargon.c_str())) //liquidargon as a channel, comment out these 5 lines to not write these hits 
+//Beware, this is VERY memory intensive
+	{
+	  fio->Write(step->GetTrack(),0, 0); //comment to not write liquidargon hits to a channel
+	  currentsteps++;
+	}
+      */    
 	  
-	} //else if(strstr
+	     ///else if(strstr
 
 
-    } //if maxsteps
+	}   //if maxsteps
 
   if(currentsteps>=maxsteps)
     {
       G4cout << G4endl << "I NEED AN ADULT" << G4endl;
       return;
     }
-	 
-} //void SteppingAction
- 
+	    
+
+}	     //void SteppingAction
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
